@@ -71,4 +71,10 @@ public class FileFeederGUI extends AbstractFeederGUI {
 	public String[] serializePartsLabels() {
 		return new String[] {"feeder.file.name"};
 	}
+
+	@Override public void applyStartupDefaults(net.azib.ipscan.config.GUIConfig guiConfig) {
+		if (guiConfig.startupFeederMode == 2 && !guiConfig.startupFilePath.isEmpty()) {
+			fileNameText.setText(guiConfig.startupFilePath);
+		}
+	}
 }

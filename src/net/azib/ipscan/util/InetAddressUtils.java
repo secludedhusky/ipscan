@@ -8,9 +8,10 @@ package net.azib.ipscan.util;
 import net.azib.ipscan.config.LoggerFactory;
 import net.azib.ipscan.config.Platform;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.*;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -239,5 +240,100 @@ public class InetAddressUtils {
 		List<NetworkInterface> interfaces = list(NetworkInterface.getNetworkInterfaces());
 		if (!Platform.WINDOWS) reverse(interfaces);
 		return interfaces;
+	}
+
+	public record InterfaceWithMetric(NetworkInterface networkInterface, InterfaceAddress interfaceAddress, int metric) {}
+
+	/**
+	 * On Windows, queries interface metrics via PowerShell and returns interfaces sorted by metric.
+	 * On other platforms, returns interfaces in default order with metric 0.
+	 */
+	public static List<InterfaceWithMetric> getAllInterfacesWithMetrics() {
+		var result = new ArrayList<InterfaceWithMetric>();
+		Map<Integer, Integer> metricsByIndex = Platform.WINDOWS ? getWindowsInterfaceMetrics() : Map.of();
+
+		try {
+			for (var networkInterface : getNetworkInterfaces()) {
+				try {
+					if (networkInterface.getHardwareAddress() == null) continue;
+				} catch (SocketException ignore) {}
+
+				for (var ifAddr : networkInterface.getInterfaceAddresses()) {
+					var addr = ifAddr.getAddress();
+					if (!addr.isLoopbackAddress() && addr instanceof Inet4Address) {
+						int metric = metricsByIndex.getOrDefault(networkInterface.getIndex(), Integer.MAX_VALUE);
+						result.add(new InterfaceWithMetric(networkInterface, ifAddr, metric));
+					}
+				}
+			}
+		} catch (SocketException e) {
+			LOG.log(Level.FINE, "Cannot enumerate network interfaces", e);
+		}
+
+		result.sort(Comparator.comparingInt(InterfaceWithMetric::metric));
+		return result;
+	}
+
+	/**
+	 * Returns the local interface selected by lowest InterfaceMetric on Windows,
+	 * falling back to the existing getLocalInterface() on other platforms or on failure.
+	 */
+	public static InterfaceAddress getLocalInterfaceByMetric() {
+		if (Platform.WINDOWS) {
+			var interfaces = getAllInterfacesWithMetrics();
+			if (!interfaces.isEmpty()) {
+				return interfaces.get(0).interfaceAddress();
+			}
+		}
+		return getLocalInterface();
+	}
+
+	/**
+	 * Returns the InterfaceAddress for a specific interface identified by display name.
+	 * Falls back to getLocalInterfaceByMetric() if not found.
+	 */
+	public static InterfaceAddress getInterfaceByName(String displayName) {
+		if (displayName == null || displayName.isEmpty()) {
+			return getLocalInterfaceByMetric();
+		}
+		try {
+			for (var networkInterface : getNetworkInterfaces()) {
+				if (networkInterface.getDisplayName().equals(displayName)) {
+					for (var ifAddr : networkInterface.getInterfaceAddresses()) {
+						if (ifAddr.getAddress() instanceof Inet4Address && !ifAddr.getAddress().isLoopbackAddress()) {
+							return ifAddr;
+						}
+					}
+				}
+			}
+		} catch (SocketException e) {
+			LOG.log(Level.FINE, "Cannot find interface by name: " + displayName, e);
+		}
+		return getLocalInterfaceByMetric();
+	}
+
+	private static Map<Integer, Integer> getWindowsInterfaceMetrics() {
+		var metrics = new HashMap<Integer, Integer>();
+		try {
+			var process = new ProcessBuilder("powershell", "-NoProfile", "-Command",
+				"Get-NetIPInterface -AddressFamily IPv4 | Select-Object ifIndex,InterfaceMetric | ForEach-Object { $_.ifIndex.ToString() + ',' + $_.InterfaceMetric.ToString() }")
+				.redirectErrorStream(true).start();
+			try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					line = line.trim();
+					var parts = line.split(",");
+					if (parts.length == 2) {
+						try {
+							metrics.put(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
+						} catch (NumberFormatException ignore) {}
+					}
+				}
+			}
+			process.waitFor();
+		} catch (Exception e) {
+			LOG.log(Level.FINE, "Cannot query Windows interface metrics", e);
+		}
+		return metrics;
 	}
 }

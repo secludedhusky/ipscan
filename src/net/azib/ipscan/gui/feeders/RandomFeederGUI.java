@@ -114,4 +114,14 @@ public class RandomFeederGUI extends AbstractFeederGUI {
 	public String[] serializePartsLabels() {
 		return new String[] {"feeder.random.prototype", "feeder.random.mask", "feeder.random.count"};
 	}
+
+	@Override public void applyStartupDefaults(net.azib.ipscan.config.GUIConfig guiConfig) {
+		if (guiConfig.startupFeederMode == 1) {
+			if (!guiConfig.startupRandomPrototype.isEmpty())
+				ipPrototypeText.setText(guiConfig.startupRandomPrototype);
+			if (!guiConfig.startupRandomMask.isEmpty())
+				ipMaskCombo.setText(guiConfig.startupRandomMask);
+			countSpinner.setSelection(guiConfig.startupRandomCount);
+		}
+	}
 }

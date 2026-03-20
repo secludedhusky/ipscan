@@ -14,6 +14,8 @@ import net.azib.ipscan.core.PortIterator;
 import net.azib.ipscan.core.net.PingerRegistry;
 import net.azib.ipscan.fetchers.FetcherException;
 import net.azib.ipscan.gui.util.LayoutHelper;
+import net.azib.ipscan.util.InetAddressUtils;
+import net.azib.ipscan.util.InetAddressUtils.InterfaceWithMetric;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.KeyListener;
@@ -22,6 +24,8 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowData;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.*;
+
+import java.util.List;
 
 import static org.eclipse.swt.events.SelectionListener.widgetSelectedAdapter;
 
@@ -65,6 +69,18 @@ public class PreferencesDialog extends AbstractModalDialog {
 	private Button versionCheckCheckbox;
 	private Button allowReports;
 	private Combo languageCombo;
+	private Combo networkInterfaceCombo;
+	private Combo startupModeCombo;
+	private Text startupStartIPText;
+	private Text startupEndIPText;
+	private Text startupPrototypeText;
+	private Combo startupMaskCombo;
+	private Spinner startupCountSpinner;
+	private Text startupFilePathText;
+	private Composite startupRangeComposite;
+	private Composite startupRandomComposite;
+	private Composite startupFileComposite;
+	private List<InterfaceWithMetric> availableInterfaces;
 
 	public PreferencesDialog(PingerRegistry pingerRegistry, Config globalConfig, ScannerConfig scannerConfig, GUIConfig guiConfig) {
 		this.pingerRegistry = pingerRegistry;
@@ -155,7 +171,9 @@ public class PreferencesDialog extends AbstractModalDialog {
 		var rowLayout = createRowLayout();
 		scanningTab = new Composite(tabFolder, SWT.NONE);
 		scanningTab.setLayout(rowLayout);
-		
+
+		createNetworkGroup();
+
 		var groupLayout = new GridLayout();
 		groupLayout.numColumns = 2;
 		var threadsGroup = new Group(scanningTab, SWT.NONE);
@@ -219,8 +237,136 @@ public class PreferencesDialog extends AbstractModalDialog {
 		skipBroadcastsCheckbox.setLayoutData(gridDataWithSpan2);
 	}
 
+	private void createNetworkGroup() {
+		var groupLayout = new GridLayout();
+		groupLayout.numColumns = 2;
+		var networkGroup = new Group(scanningTab, SWT.NONE);
+		networkGroup.setText(Labels.getLabel("preferences.network"));
+		networkGroup.setLayout(groupLayout);
+
+		var gridData = new GridData(200, SWT.DEFAULT);
+
+		var label = new Label(networkGroup, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.interface"));
+		networkInterfaceCombo = new Combo(networkGroup, SWT.DROP_DOWN | SWT.READ_ONLY);
+		networkInterfaceCombo.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		networkInterfaceCombo.add(Labels.getLabel("preferences.network.interface.auto"));
+
+		availableInterfaces = InetAddressUtils.getAllInterfacesWithMetrics();
+		for (var iface : availableInterfaces) {
+			var ni = iface.networkInterface();
+			var addr = iface.interfaceAddress();
+			var text = ni.getDisplayName() + ": " + addr.getAddress().getHostAddress()
+				+ "/" + addr.getNetworkPrefixLength() + " (metric: " + iface.metric() + ")";
+			networkInterfaceCombo.add(text);
+		}
+		networkInterfaceCombo.select(0);
+
+		label = new Label(networkGroup, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup"));
+		startupModeCombo = new Combo(networkGroup, SWT.DROP_DOWN | SWT.READ_ONLY);
+		startupModeCombo.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		startupModeCombo.add(Labels.getLabel("preferences.network.startup.auto"));
+		startupModeCombo.add(Labels.getLabel("preferences.network.startup.range"));
+		startupModeCombo.add(Labels.getLabel("preferences.network.startup.random"));
+		startupModeCombo.add(Labels.getLabel("preferences.network.startup.file"));
+		startupModeCombo.select(0);
+
+		// Manual IP Range fields
+		startupRangeComposite = new Composite(networkGroup, SWT.NONE);
+		var rangeLayout = new GridLayout(2, false);
+		rangeLayout.marginWidth = 0; rangeLayout.marginHeight = 0;
+		startupRangeComposite.setLayout(rangeLayout);
+		var spanData = new GridData(GridData.FILL_HORIZONTAL);
+		spanData.horizontalSpan = 2;
+		startupRangeComposite.setLayoutData(spanData);
+
+		label = new Label(startupRangeComposite, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup.startIP"));
+		startupStartIPText = new Text(startupRangeComposite, SWT.BORDER);
+		startupStartIPText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		label = new Label(startupRangeComposite, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup.endIP"));
+		startupEndIPText = new Text(startupRangeComposite, SWT.BORDER);
+		startupEndIPText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		// Random fields
+		startupRandomComposite = new Composite(networkGroup, SWT.NONE);
+		var randomLayout = new GridLayout(2, false);
+		randomLayout.marginWidth = 0; randomLayout.marginHeight = 0;
+		startupRandomComposite.setLayout(randomLayout);
+		spanData = new GridData(GridData.FILL_HORIZONTAL);
+		spanData.horizontalSpan = 2;
+		startupRandomComposite.setLayoutData(spanData);
+
+		label = new Label(startupRandomComposite, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup.prototype"));
+		startupPrototypeText = new Text(startupRandomComposite, SWT.BORDER);
+		startupPrototypeText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		label = new Label(startupRandomComposite, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup.mask"));
+		startupMaskCombo = new Combo(startupRandomComposite, SWT.NONE);
+		startupMaskCombo.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		startupMaskCombo.add("255...128");
+		startupMaskCombo.add("255...0");
+		startupMaskCombo.add("255..0.0");
+		startupMaskCombo.add("255.0.0.0");
+		startupMaskCombo.add("0.0.0.0");
+		startupMaskCombo.select(3);
+
+		label = new Label(startupRandomComposite, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup.count"));
+		startupCountSpinner = new Spinner(startupRandomComposite, SWT.BORDER);
+		startupCountSpinner.setMinimum(1);
+		startupCountSpinner.setMaximum(100000000);
+		startupCountSpinner.setSelection(100);
+		startupCountSpinner.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		// File fields
+		startupFileComposite = new Composite(networkGroup, SWT.NONE);
+		var fileLayout = new GridLayout(3, false);
+		fileLayout.marginWidth = 0; fileLayout.marginHeight = 0;
+		startupFileComposite.setLayout(fileLayout);
+		spanData = new GridData(GridData.FILL_HORIZONTAL);
+		spanData.horizontalSpan = 2;
+		startupFileComposite.setLayoutData(spanData);
+
+		label = new Label(startupFileComposite, SWT.NONE);
+		label.setText(Labels.getLabel("preferences.network.startup.filePath"));
+		startupFilePathText = new Text(startupFileComposite, SWT.BORDER);
+		startupFilePathText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		var browseButton = new Button(startupFileComposite, SWT.NONE);
+		browseButton.setText(Labels.getLabel("preferences.network.startup.browse"));
+		browseButton.addSelectionListener(widgetSelectedAdapter(e -> {
+			var dialog = new FileDialog(shell);
+			dialog.setText(Labels.getLabel("preferences.network.startup.browse"));
+			var fileName = dialog.open();
+			if (fileName != null) {
+				startupFilePathText.setText(fileName);
+			}
+		}));
+
+		// Show/hide fields based on startup mode
+		startupModeCombo.addSelectionListener(widgetSelectedAdapter(e -> updateStartupModeVisibility()));
+		updateStartupModeVisibility();
+	}
+
+	private void updateStartupModeVisibility() {
+		int mode = startupModeCombo.getSelectionIndex();
+		startupRangeComposite.setVisible(mode == 1);
+		((GridData) startupRangeComposite.getLayoutData()).exclude = mode != 1;
+		startupRandomComposite.setVisible(mode == 2);
+		((GridData) startupRandomComposite.getLayoutData()).exclude = mode != 2;
+		startupFileComposite.setVisible(mode == 3);
+		((GridData) startupFileComposite.getLayoutData()).exclude = mode != 3;
+		scanningTab.layout(true, true);
+		shell.pack();
+	}
+
 	/**
-	 * This method initializes displayTab	
+	 * This method initializes displayTab
 	 */
 	private void createDisplayTab() {
 		var rowLayout = createRowLayout();
@@ -365,6 +511,25 @@ public class PreferencesDialog extends AbstractModalDialog {
 	}
 
 	private void loadPreferences() {
+		// Network settings
+		networkInterfaceCombo.select(0);
+		if (!guiConfig.startupNetworkInterface.isEmpty()) {
+			for (var i = 0; i < availableInterfaces.size(); i++) {
+				if (availableInterfaces.get(i).networkInterface().getDisplayName().equals(guiConfig.startupNetworkInterface)) {
+					networkInterfaceCombo.select(i + 1);
+					break;
+				}
+			}
+		}
+		startupModeCombo.select(guiConfig.startupFeederMode + 1); // -1 maps to 0 (auto)
+		startupStartIPText.setText(guiConfig.startupRangeStart);
+		startupEndIPText.setText(guiConfig.startupRangeEnd);
+		startupPrototypeText.setText(guiConfig.startupRandomPrototype);
+		startupMaskCombo.setText(guiConfig.startupRandomMask);
+		startupCountSpinner.setSelection(guiConfig.startupRandomCount);
+		startupFilePathText.setText(guiConfig.startupFilePath);
+		updateStartupModeVisibility();
+
 		maxThreadsText.setText(Integer.toString(scannerConfig.maxThreads));
 		threadDelayText.setText(Integer.toString(scannerConfig.threadDelay));
 		var pingerNames = pingerRegistry.getRegisteredNames();
@@ -398,6 +563,21 @@ public class PreferencesDialog extends AbstractModalDialog {
 	}
 	
 	private void savePreferences() {
+		// Save network settings
+		int ifaceIndex = networkInterfaceCombo.getSelectionIndex();
+		if (ifaceIndex <= 0) {
+			guiConfig.startupNetworkInterface = "";
+		} else {
+			guiConfig.startupNetworkInterface = availableInterfaces.get(ifaceIndex - 1).networkInterface().getDisplayName();
+		}
+		guiConfig.startupFeederMode = startupModeCombo.getSelectionIndex() - 1; // 0 maps to -1 (auto)
+		guiConfig.startupRangeStart = startupStartIPText.getText().trim();
+		guiConfig.startupRangeEnd = startupEndIPText.getText().trim();
+		guiConfig.startupRandomPrototype = startupPrototypeText.getText().trim();
+		guiConfig.startupRandomMask = startupMaskCombo.getText().trim();
+		guiConfig.startupRandomCount = startupCountSpinner.getSelection();
+		guiConfig.startupFilePath = startupFilePathText.getText().trim();
+
 		// validate port string
 		try {
 			new PortIterator(portsText.getText());

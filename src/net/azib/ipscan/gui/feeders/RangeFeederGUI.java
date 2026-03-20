@@ -226,4 +226,12 @@ public class RangeFeederGUI extends AbstractFeederGUI {
 			isEndIPUnedited = true;
 		}
 	}
+
+	@Override public void applyStartupDefaults(net.azib.ipscan.config.GUIConfig guiConfig) {
+		if (guiConfig.startupFeederMode == 0 && !guiConfig.startupRangeStart.isEmpty()) {
+			startIPText.setText(guiConfig.startupRangeStart);
+			endIPText.setText(guiConfig.startupRangeEnd);
+			isEndIPUnedited = false;
+		}
+	}
 }

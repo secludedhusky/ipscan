@@ -71,6 +71,9 @@ public class MainWindow {
 		initControlsArea(controlsArea, feederSelectionCombo, startStopButton, startStopScanningAction, preferencesListener, chooseFetchersListener);
 		initTableAndStatusBar(resultTable, resultsContextMenu, statusBar);
 
+		// Apply startup defaults from preferences
+		applyStartupDefaults(feederGUIRegistry, feederSelectionCombo);
+
 		// after all controls are initialized, resize and open
 		shell.setSize(guiConfig.getMainWindowSize());
 
@@ -218,6 +221,18 @@ public class MainWindow {
 			
 	
 	
+	private void applyStartupDefaults(FeederGUIRegistry feederGUIRegistry, Combo feederSelectionCombo) {
+		int mode = guiConfig.startupFeederMode;
+		if (mode >= 0) {
+			// mode 0 = IP Range (feeder index 0), mode 1 = Random (feeder index 1), mode 2 = File (feeder index 2)
+			feederSelectionCombo.select(mode);
+			feederSelectionCombo.notifyListeners(SWT.Selection, null);
+		}
+		// Apply startup defaults to the current feeder after a slight delay
+		// to allow async interface detection to complete first
+		Display.getCurrent().asyncExec(() -> feederGUIRegistry.current().applyStartupDefaults(guiConfig));
+	}
+
 	class EnablerDisabler implements StateTransitionListener {
 		public void transitionTo(final ScanningState state, Transition transition) {
 			if (transition != Transition.START && transition != Transition.COMPLETE)

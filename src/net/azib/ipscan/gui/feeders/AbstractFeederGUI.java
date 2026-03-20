@@ -5,6 +5,7 @@
  */
 package net.azib.ipscan.gui.feeders;
 
+import net.azib.ipscan.config.Config;
 import net.azib.ipscan.config.LoggerFactory;
 import net.azib.ipscan.feeders.Feeder;
 import net.azib.ipscan.feeders.FeederCreator;
@@ -73,7 +74,8 @@ public abstract class AbstractFeederGUI extends Composite implements FeederCreat
 			// this method is called for multiple Feeders simultaneously
 			synchronized (localResolveLock) {
 				if (localInterface == null) {
-					localInterface = InetAddressUtils.getLocalInterface();
+					var configuredInterface = Config.getConfig().forGUI().startupNetworkInterface;
+					localInterface = InetAddressUtils.getInterfaceByName(configuredInterface);
 					try {
 						localName = InetAddress.getLocalHost().getHostName();
 					}
@@ -95,5 +97,9 @@ public abstract class AbstractFeederGUI extends Composite implements FeederCreat
 	}
 
 	protected void afterLocalHostInfoFilled(InterfaceAddress localInterface) {
+	}
+
+	public void applyStartupDefaults(net.azib.ipscan.config.GUIConfig guiConfig) {
+		// Override in subclasses to apply startup defaults
 	}
 }

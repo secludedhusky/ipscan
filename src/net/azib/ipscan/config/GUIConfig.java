@@ -24,7 +24,16 @@ public class GUIConfig {
 	public DisplayMethod displayMethod;
 	public boolean showScanStats;
 	public boolean askScanConfirmation;
-	
+
+	public String startupNetworkInterface;
+	public int startupFeederMode;
+	public String startupRangeStart;
+	public String startupRangeEnd;
+	public String startupRandomPrototype;
+	public String startupRandomMask;
+	public int startupRandomCount;
+	public String startupFilePath;
+
 	public int[] mainWindowSize;
 	public int[] mainWindowPosition;
 	public boolean isMainWindowMaximized;
@@ -48,6 +57,15 @@ public class GUIConfig {
 		showScanStats = preferences.getBoolean("showScanStats", true);
 		askScanConfirmation = preferences.getBoolean("askScanConfirmation", true);
 
+		startupNetworkInterface = preferences.get("startupNetworkInterface", "");
+		startupFeederMode = preferences.getInt("startupFeederMode", -1);
+		startupRangeStart = preferences.get("startupRangeStart", "");
+		startupRangeEnd = preferences.get("startupRangeEnd", "");
+		startupRandomPrototype = preferences.get("startupRandomPrototype", "");
+		startupRandomMask = preferences.get("startupRandomMask", "255.0.0.0");
+		startupRandomCount = preferences.getInt("startupRandomCount", 100);
+		startupFilePath = preferences.get("startupFilePath", "");
+
 		isMainWindowMaximized = preferences.getBoolean("windowMaximized", false);
 		mainWindowSize = new int[] {preferences.getInt("windowWidth", 800), preferences.getInt("windowHeight", 450)};
 		mainWindowPosition = new int[] {preferences.getInt("windowX", 50), preferences.getInt("windowY", 85)};
@@ -63,6 +81,15 @@ public class GUIConfig {
 		preferences.put("displayMethod", displayMethod.toString());
 		preferences.putBoolean("showScanStats", showScanStats);
 		preferences.putBoolean("askScanConfirmation", askScanConfirmation);
+
+		preferences.put("startupNetworkInterface", startupNetworkInterface);
+		preferences.putInt("startupFeederMode", startupFeederMode);
+		preferences.put("startupRangeStart", startupRangeStart);
+		preferences.put("startupRangeEnd", startupRangeEnd);
+		preferences.put("startupRandomPrototype", startupRandomPrototype);
+		preferences.put("startupRandomMask", startupRandomMask);
+		preferences.putInt("startupRandomCount", startupRandomCount);
+		preferences.put("startupFilePath", startupFilePath);
 
 		preferences.putBoolean("windowMaximized", isMainWindowMaximized);
 		if (!isMainWindowMaximized) {
