@@ -244,8 +244,6 @@ public class PreferencesDialog extends AbstractModalDialog {
 		networkGroup.setText(Labels.getLabel("preferences.network"));
 		networkGroup.setLayout(groupLayout);
 
-		var gridData = new GridData(200, SWT.DEFAULT);
-
 		var label = new Label(networkGroup, SWT.NONE);
 		label.setText(Labels.getLabel("preferences.network.interface"));
 		networkInterfaceCombo = new Combo(networkGroup, SWT.DROP_DOWN | SWT.READ_ONLY);
@@ -362,7 +360,9 @@ public class PreferencesDialog extends AbstractModalDialog {
 		startupFileComposite.setVisible(mode == 3);
 		((GridData) startupFileComposite.getLayoutData()).exclude = mode != 3;
 		scanningTab.layout(true, true);
-		shell.pack();
+		if (okButton != null) {
+			shell.pack();
+		}
 	}
 
 	/**
